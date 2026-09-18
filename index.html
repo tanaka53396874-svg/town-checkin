@@ -1,0 +1,507 @@
+```html
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>町丁目制覇</title>
+
+    <!-- Leaflet -->
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+
+    <style>
+        #map {
+            height: 85vh;
+        }
+
+        button {
+            font-size: 18px;
+            padding: 10px 20px;
+            margin-bottom: 10px;
+        }
+
+        #locationInfo {
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+<h2>町丁目制覇</h2>
+
+<button onclick="getLocation()">現在地を取得</button>
+
+<div id="locationInfo">
+    現在地：まだ取得していません
+</div>
+
+<div id="map"></div>
+
+
+<!-- Leaflet -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<!-- Turf.js -->
+<script src="https://cdn.jsdelivr.net/npm/@turf/turf@7/turf.min.js"></script>
+
+
+<script>
+
+    // =========================
+    // 地図を作る
+    // =========================
+
+    const map = L.map('map').setView([35.63, 139.43], 13);
+
+
+    // =========================
+    // 背景地図
+    // =========================
+
+    L.tileLayer(
+        'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        {
+            attribution: '&copy; OpenStreetMap contributors'
+        }
+    ).addTo(map);
+
+
+    // =========================
+    // ポリゴンの初期状態
+    // =========================
+
+    function normalStyle(feature) {
+
+        return {
+            color: '#555',
+            weight: 1,
+            fillColor: '#ffffff',
+            fillOpacity: 0.5
+        };
+
+    }
+
+
+    // =========================
+    // 訪問回数による色
+    // =========================
+
+    const colors = [
+        '#ffffff',  // 0回
+        '#90ee90',  // 1回
+        '#87ceeb',  // 2回
+        '#ffff66',  // 3回
+        '#ffb347',  // 4回
+        '#ff6666'   // 5回
+    ];
+
+
+    // =========================
+    // GeoJSONレイヤー
+    // =========================
+
+    let townLayer = null;
+
+
+    // =========================
+    // ポリゴンをクリックしたとき
+    // =========================
+
+    function onEachFeature(feature, layer) {
+
+        // このポリゴンの訪問回数
+        let count = 0;
+
+
+        // 後でGPS判定から訪問回数を変更できるように保存
+        feature.visitCount = count;
+
+
+        layer.on('click', function() {
+
+            // 5回まで
+            if (count < 5) {
+                count++;
+            }
+
+
+            // 訪問回数を保存
+            feature.visitCount = count;
+
+
+            // 色を変更
+            layer.setStyle({
+
+                fillColor: colors[count],
+
+                fillOpacity: 0.7
+
+            });
+
+
+            // 町丁目名を表示
+            const townName = feature.properties.S_NAME;
+
+            layer.bindPopup(
+                '<b>' + townName + '</b><br>' +
+                '訪問回数：' + count + '回'
+            ).openPopup();
+
+
+            console.log(
+                townName + ' 訪問回数:',
+                count
+            );
+
+        });
+
+    }
+
+
+    // =========================
+    // GeoJSONを読み込む
+    // =========================
+
+    fetch('towns.geojson')
+
+        .then(response => response.json())
+
+        .then(data => {
+
+            townLayer = L.geoJSON(data, {
+
+                style: normalStyle,
+
+                onEachFeature: onEachFeature
+
+            }).addTo(map);
+
+        })
+
+        .catch(error => {
+
+            console.error(
+                'GeoJSONの読み込みに失敗しました:',
+                error
+            );
+
+            alert(
+                'towns.geojsonを読み込めませんでした'
+            );
+
+        });
+
+
+    // =========================
+    // 現在地マーカー
+    // =========================
+
+    let locationMarker = null;
+
+
+    // =========================
+    // 現在いる町丁目を強調する
+    // =========================
+
+    let currentTownLayer = null;
+
+
+    function highlightCurrentTown(layer) {
+
+        // 前に強調した町丁目を元に戻す
+        if (currentTownLayer) {
+
+            const oldFeature =
+                currentTownLayer.feature;
+
+            const oldCount =
+                oldFeature.visitCount || 0;
+
+
+            currentTownLayer.setStyle({
+
+                color: '#555',
+
+                weight: 1,
+
+                fillColor: colors[oldCount],
+
+                fillOpacity: oldCount === 0 ? 0.5 : 0.7
+
+            });
+
+        }
+
+
+        // 新しい町丁目を強調
+        currentTownLayer = layer;
+
+
+        const feature = layer.feature;
+
+        const count =
+            feature.visitCount || 0;
+
+
+        layer.setStyle({
+
+            color: '#0000ff',
+
+            weight: 4,
+
+            fillColor: colors[count],
+
+            fillOpacity: 0.8
+
+        });
+
+    }
+
+
+    // =========================
+    // 現在地を取得
+    // =========================
+
+    function getLocation() {
+
+        // GPSが使えるか確認
+        if (!navigator.geolocation) {
+
+            alert(
+                'このブラウザはGPSに対応していません'
+            );
+
+            return;
+        }
+
+
+        document.getElementById(
+            'locationInfo'
+        ).textContent =
+            '現在地を取得しています……';
+
+
+        navigator.geolocation.getCurrentPosition(
+
+            // =====================
+            // GPS取得成功
+            // =====================
+
+            function(position) {
+
+                const lat =
+                    position.coords.latitude;
+
+                const lng =
+                    position.coords.longitude;
+
+
+                console.log(
+                    '緯度:',
+                    lat
+                );
+
+                console.log(
+                    '経度:',
+                    lng
+                );
+
+
+                // =====================
+                // 現在地マーカー
+                // =====================
+
+                if (locationMarker) {
+
+                    map.removeLayer(
+                        locationMarker
+                    );
+
+                }
+
+
+                locationMarker =
+                    L.marker([lat, lng])
+                        .addTo(map)
+                        .bindPopup('現在地');
+
+
+                // 現在地へ移動
+                map.setView(
+                    [lat, lng],
+                    16
+                );
+
+
+                // =====================
+                // 町丁目を判定
+                // =====================
+
+                findCurrentTown(
+                    lat,
+                    lng
+                );
+
+            },
+
+
+            // =====================
+            // GPS取得失敗
+            // =====================
+
+            function(error) {
+
+                console.log(
+                    'GPSエラー:',
+                    error
+                );
+
+
+                document.getElementById(
+                    'locationInfo'
+                ).textContent =
+                    '現在地を取得できませんでした';
+
+
+                alert(
+                    '現在地を取得できませんでした。\n' +
+                    'ブラウザの位置情報設定を確認してください。'
+                );
+
+            },
+
+            // GPS取得オプション
+            {
+                enableHighAccuracy: true,
+
+                timeout: 10000,
+
+                maximumAge: 0
+            }
+
+        );
+
+    }
+
+
+    // =========================
+    // GPS位置から町丁目を探す
+    // =========================
+
+    function findCurrentTown(lat, lng) {
+
+        // GeoJSONがまだ読み込まれていない場合
+        if (!townLayer) {
+
+            alert(
+                '町丁目データを読み込み中です。\n' +
+                '少し待ってからもう一度試してください。'
+            );
+
+            return;
+        }
+
+
+        // GPS地点をTurfのPointにする
+        const point =
+            turf.point([lng, lat]);
+
+
+        let foundTown = null;
+
+
+        // 全町丁目を調べる
+        townLayer.eachLayer(function(layer) {
+
+            if (foundTown) {
+                return;
+            }
+
+
+            const feature =
+                layer.feature;
+
+
+            // GPS地点がポリゴン内にあるか判定
+            if (
+                turf.booleanPointInPolygon(
+                    point,
+                    feature
+                )
+            ) {
+
+                foundTown = layer;
+
+            }
+
+        });
+
+
+        // =========================
+        // 町丁目が見つかった
+        // =========================
+
+        if (foundTown) {
+
+            const townName =
+                foundTown.feature.properties.S_NAME;
+
+
+            console.log(
+                '現在いる町丁目:',
+                townName
+            );
+
+
+            document.getElementById(
+                'locationInfo'
+            ).textContent =
+                '現在地：' + townName;
+
+
+            // 現在の町丁目を強調
+            highlightCurrentTown(
+                foundTown
+            );
+
+
+            // ポップアップ
+            foundTown.bindPopup(
+                '<b>現在地の町丁目</b><br>' +
+                townName
+            ).openPopup();
+
+        }
+
+
+        // =========================
+        // 町丁目が見つからなかった
+        // =========================
+
+        else {
+
+            console.log(
+                '現在地は町丁目ポリゴンの外です'
+            );
+
+
+            document.getElementById(
+                'locationInfo'
+            ).textContent =
+                '現在地：町丁目を特定できませんでした';
+
+        }
+
+    }
+
+</script>
+
+</body>
+</html>
+```
