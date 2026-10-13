@@ -51,7 +51,7 @@
         #mapMainControls {
             position: absolute;
             z-index: 1000;
-            left: 10px;
+            left: 70px;
             top: 10px;
             display: flex;
             gap: 7px;
@@ -207,33 +207,6 @@
         }
 
         .leaflet-control-current-location button:active {
-            background: #eee;
-        }
-
-        /* ページ最上部へ戻るボタン */
-        .leaflet-control-page-top {
-            background: #fff;
-            border: 2px solid rgba(0,0,0,0.2);
-            border-radius: 5px;
-            box-shadow: 0 1px 5px rgba(0,0,0,0.35);
-        }
-
-        .leaflet-control-page-top button {
-            display: block;
-            width: 44px;
-            height: 44px;
-            margin: 0;
-            padding: 0;
-            border: 0;
-            border-radius: 3px;
-            background: #fff;
-            font-size: 26px;
-            font-weight: bold;
-            line-height: 44px;
-            cursor: pointer;
-        }
-
-        .leaflet-control-page-top button:active {
             background: #eee;
         }
 
@@ -556,46 +529,6 @@
     });
 
     map.addControl(new CurrentLocationControl());
-
-    // ============================================================
-    // 地図内の「ページ最上部へ戻る」ボタン
-    // 地図を大きく表示して上部の操作部分が見えなくなっても、
-    // この ↑ を押せばページを最初の位置まで戻せます。
-    // ============================================================
-    const PageTopControl = L.Control.extend({
-        options: {
-            position: 'bottomright'
-        },
-
-        onAdd: function() {
-            const container = L.DomUtil.create(
-                'div',
-                'leaflet-control-page-top'
-            );
-
-            const button = L.DomUtil.create('button', '', container);
-            button.type = 'button';
-            button.innerHTML = '↑';
-            button.title = 'ページの一番上へ戻る';
-            button.setAttribute('aria-label', 'ページの一番上へ戻る');
-
-            L.DomEvent.disableClickPropagation(container);
-            L.DomEvent.disableScrollPropagation(container);
-
-            L.DomEvent.on(button, 'click', function(e) {
-                L.DomEvent.stop(e);
-                window.scrollTo({
-                    top: 0,
-                    left: 0,
-                    behavior: 'smooth'
-                });
-            });
-
-            return container;
-        }
-    });
-
-    map.addControl(new PageTopControl());
 
     // ============================================================
     // 地図内の「訪問色レイヤー ON/OFF」ボタン
