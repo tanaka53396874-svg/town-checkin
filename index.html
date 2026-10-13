@@ -292,6 +292,39 @@
         .leaflet-control-heading-up button.active {
             background: #dff1ff;
         }
+
+        /* 歩数管理 */
+        #tabBar{display:flex;gap:6px;margin-top:5px}
+        #tabBar button{flex:1;margin:0;padding:7px;border:1px solid #ccd3da;border-radius:7px;background:#f3f6f9;font-weight:bold}
+        #tabBar button.active{background:#dcecfb;border-color:#5798cc}
+        #healthWrap{display:none;flex:1;min-height:0;overflow-y:auto;background:#f5f7fa;padding:12px;box-sizing:border-box}
+        #healthWrap.active{display:block} #mapWrap.hidden{display:none}
+        .health-container{max-width:780px;margin:0 auto;padding-bottom:30px}
+        .health-card{background:white;border:1px solid #e1e5ea;border-radius:12px;padding:13px;margin-bottom:12px;box-shadow:0 1px 4px #00000009}
+        .health-row{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+        .health-row button{margin:0;padding:7px 11px;border-radius:7px;border:1px solid #ccd3da;background:white}
+        .health-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+        .health-stat{background:#f5f8fc;border-radius:8px;padding:10px}
+        .health-stat strong{display:block;font-size:21px;margin-top:4px}
+        .health-stat small{color:#667085}
+        #healthCalendar{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin-top:12px}
+        .health-day{min-height:65px;padding:5px 2px;border:1px solid #e3e8ed;border-radius:6px;background:white;text-align:center;font-size:12px;min-width:0;overflow:hidden}
+        .health-day:disabled{color:#b3b9c1;background:#fafafa}
+        .health-day .step{font-size:12px;font-weight:bold;display:block;margin-top:4px}
+        .health-day.achieved{background:#e7f6e9;border-color:#a6d7ad}
+        .health-day.selected{outline:2px solid #448bcb}
+        .health-week{text-align:center;font-size:12px;font-weight:bold;color:#667085}
+        .health-sub{font-size:11px;color:#657181;display:block}
+        .health-card h3{margin:0 0 10px;font-size:16px}
+        .health-chart{height:220px;position:relative}
+        .health-chart canvas{width:100%!important;height:100%!important}
+        .health-fields label{display:block;font-weight:bold;font-size:13px;margin-top:10px}
+        .health-fields input,.health-fields textarea{width:100%;box-sizing:border-box;margin:5px 0;padding:9px;border:1px solid #cbd5df;border-radius:7px;font:inherit}
+        .health-fields textarea{min-height:75px}
+        #healthDetail{display:none}
+        .health-msg{font-size:13px;color:#556274;margin:8px 0}
+        #healthSettings{display:none;margin-top:10px}
+        @media(max-width:400px){.health-day{min-height:61px;font-size:11px}.health-day .step{font-size:11px}#healthWrap{padding:7px}}
     </style>
 </head>
 
@@ -307,6 +340,7 @@
                     aria-label="設定" title="設定">⚙</button>
         </div>
     </div>
+    <div id="tabBar"><button id="mapTab" class="active" onclick="switchTab('map')">🗺 地図</button><button id="healthTab" onclick="switchTab('health')">👟 歩数管理</button></div>
 
     <div id="authBox">
         <div id="loginForm">
@@ -333,7 +367,6 @@
     <div id="map"></div>
 
     <div id="mapMainControls">
-        <button id="trackingButton" type="button" onclick="getLocation()">現在地の追跡を開始</button>
         <button id="checkInButton" onclick="checkIn()" disabled>CHECK IN</button>
     </div>
 
@@ -343,6 +376,21 @@
     </div>
 </div>
 
+
+<div id="healthWrap"><div class="health-container">
+  <div class="health-card"><div class="health-row"><h3 style="margin:0">歩数・健康管理</h3><button onclick="loadHealthData()">↻ 更新</button></div>
+    <div id="healthMessage" class="health-msg">ログインするとデータを表示します。</div>
+    <div class="health-row"><span id="healthGoalText">目標 5,000歩/日</span><button onclick="toggleHealthSettings()" title="歩数目標を変更">⚙ 目標設定</button></div>
+    <div id="healthSettings" class="health-fields"><label for="healthGoalInput">今日からの歩数目標</label><input id="healthGoalInput" type="number" min="1" max="100000" step="1" value="5000"><button onclick="saveHealthGoal()">目標を保存</button><div class="health-msg">変更した日から適用され、過去の達成判定は変わりません。</div></div>
+  </div>
+  <div class="health-card"><div class="health-row"><button onclick="moveHealthMonth(-1)">◀ 前月</button><strong id="healthMonthLabel"></strong><button onclick="moveHealthMonth(1)">翌月 ▶</button></div><div id="healthCalendar"></div><div class="health-msg">緑：目標達成 ／ ―：歩数記録なし ／ 📝：メモあり。今日の歩数は表示しません。</div></div>
+  <div class="health-card" id="healthDetail"><h3 id="healthDetailTitle"></h3><div id="healthDetailSteps" class="health-msg"></div><div class="health-fields"><label for="healthWeight">体重（kg、小数1桁）</label><input id="healthWeight" type="number" min="1" max="999.9" step="0.1" placeholder="未記録"><label for="healthMemo">メモ</label><textarea id="healthMemo" maxlength="3000" placeholder="自由に記録"></textarea></div><div class="health-row"><button onclick="saveHealthNote()">保存</button><button onclick="deleteHealthNote()">体重・メモを削除</button><button onclick="document.getElementById('healthDetail').style.display='none'">閉じる</button></div></div>
+  <div class="health-card"><h3>歩数の統計</h3><div id="healthStats" class="health-grid"></div></div>
+  <div class="health-card"><div class="health-row"><h3>歩数グラフ</h3><select id="stepChartPeriod" onchange="renderHealthCharts()"><option value="month">今月</option><option value="30">直近30日</option></select><select id="stepChartType" onchange="renderHealthCharts()"><option value="bar">棒グラフ</option><option value="line">折れ線</option></select></div><div class="health-chart"><canvas id="stepsChart"></canvas></div></div>
+  <div class="health-card"><div class="health-row"><h3>体重グラフ・統計</h3><select id="weightChartPeriod" onchange="renderHealthCharts()"><option value="30">直近30日</option><option value="month">今月</option><option value="year">今年</option></select></div><div id="weightStats" class="health-msg"></div><div class="health-chart"><canvas id="weightChart"></canvas></div></div>
+</div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/@tomickigrzegorz/leaflet-rotate@0.2.4/dist/leaflet-rotate.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@turf/turf@7/turf.min.js"></script>
@@ -357,6 +405,8 @@
     const SUPABASE_URL = 'https://zinykdjisortaxuixnbi.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_2yG5Wf27ihXU1QDqCr3c-w_N8M-ZNp3';
 
+    // 町丁目制覇側でデプロイした読み取り専用Edge FunctionのURLを設定します。
+    const STEP_READ_FUNCTION_URL = '';
     const AREA_ID = 'tama';
     const OLD_STORAGE_KEY = 'townCheckinVisitsV1';
 
@@ -762,9 +812,13 @@
             authStatus.textContent = '● ログイン済み';
 
             await loadVisitsFromSupabase();
+            if (document.getElementById('healthWrap').classList.contains('active')) await loadHealthData();
             updateMigrationButton();
         } else {
             visits = {};
+            healthSteps = {}; healthNotes = {}; healthGoals = [];
+            document.getElementById('healthMessage').textContent = 'ログインするとデータを表示します。';
+            renderHealth();
             loginForm.style.display = 'block';
             loggedInControls.style.display = 'none';
             authStatus.textContent = 'ログインしてください';
@@ -1157,11 +1211,6 @@
         document.getElementById('locationInfo').textContent =
             '現在地を追跡しています……';
 
-        const trackingButton = document.getElementById('trackingButton');
-        if (trackingButton) {
-            trackingButton.textContent = '追跡中・現在地へ';
-        }
-
         if (watchId !== null) {
             returnToCurrentLocation();
             return;
@@ -1327,6 +1376,142 @@
     // ============================================================
     // 起動
     // ============================================================
+
+    // ============================================================
+    // 歩数・健康管理（歩数はSTEP HIGHERから読み取り専用）
+    // ============================================================
+    let healthSteps = {}, healthNotes = {}, healthGoals = [];
+    let healthMonth = new Date(); healthMonth.setDate(1);
+    let healthSelectedDate = null;
+    let stepsChartInstance = null, weightChartInstance = null;
+    const HEALTH_START = '2026-01-01';
+    const fmtDate = d => [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
+    const dateFrom = s => new Date(Number(s.slice(0,4)),Number(s.slice(5,7))-1,Number(s.slice(8,10)));
+    const addDays = (d,n) => {const x=new Date(d);x.setDate(x.getDate()+n);return x;};
+    const yesterday = () => fmtDate(addDays(new Date(),-1));
+    const nfmt = n => Number(n).toLocaleString('ja-JP');
+    const dayGoal = date => {let g=5000; for(const r of healthGoals){if(r.effective_date<=date)g=r.goal_steps;else break;}return g;};
+    function switchTab(tab){
+        const isHealth=tab==='health';
+        document.getElementById('mapWrap').classList.toggle('hidden',isHealth);
+        document.getElementById('healthWrap').classList.toggle('active',isHealth);
+        document.getElementById('mapTab').classList.toggle('active',!isHealth);
+        document.getElementById('healthTab').classList.toggle('active',isHealth);
+        closeSettings();
+        if(isHealth) {renderHealth();if(currentUser)loadHealthData();}
+        else setTimeout(()=>map.invalidateSize(),50);
+    }
+    function toggleHealthSettings(){const e=document.getElementById('healthSettings');e.style.display=e.style.display==='block'?'none':'block';document.getElementById('healthGoalInput').value=dayGoal(fmtDate(new Date()));}
+    async function loadHealthData(){
+        if(!currentUser)return;
+        const message=document.getElementById('healthMessage');message.textContent='データを取得中…';
+        try{
+            const [notes,goals]=await Promise.all([
+                supabaseClient.from('health_daily_notes').select('entry_date,weight_kg,memo').gte('entry_date',HEALTH_START),
+                supabaseClient.from('health_step_goals').select('effective_date,goal_steps').order('effective_date',{ascending:true})
+            ]);
+            if(notes.error)throw notes.error;if(goals.error)throw goals.error;
+            healthNotes=Object.fromEntries((notes.data||[]).map(r=>[r.entry_date,r]));
+            healthGoals=goals.data||[];
+            if(!STEP_READ_FUNCTION_URL){message.textContent='歩数連携のURLが未設定です。体重・メモは利用できます。';healthSteps={};}
+            else{
+                const {data:{session}}=await supabaseClient.auth.getSession();
+                if(!session)throw new Error('ログインし直してください');
+                const res=await fetch(STEP_READ_FUNCTION_URL,{headers:{'Authorization':'Bearer '+session.access_token,'apikey':SUPABASE_KEY}});
+                if(!res.ok)throw new Error('歩数取得エラー（HTTP '+res.status+'）');
+                const payload=await res.json();
+                healthSteps=Object.fromEntries((payload.days||[]).map(r=>[r.step_date,Number(r.steps)]));
+                message.textContent='歩数：'+Object.keys(healthSteps).length+'日分を取得しました（昨日まで）';
+            }
+        }catch(e){console.error(e);message.textContent='読み込みに失敗しました：'+e.message;}
+        renderHealth();
+    }
+    function renderHealth(){
+        const today=fmtDate(new Date()),last=yesterday();
+        document.getElementById('healthGoalText').textContent='目標 '+nfmt(dayGoal(today))+'歩/日';
+        document.getElementById('healthMonthLabel').textContent=healthMonth.getFullYear()+'年'+(healthMonth.getMonth()+1)+'月';
+        const cal=document.getElementById('healthCalendar');cal.replaceChildren();
+        ['日','月','火','水','木','金','土'].forEach(w=>{const el=document.createElement('div');el.className='health-week';el.textContent=w;cal.append(el);});
+        const first=new Date(healthMonth.getFullYear(),healthMonth.getMonth(),1);
+        for(let i=0;i<first.getDay();i++)cal.append(document.createElement('div'));
+        const count=new Date(first.getFullYear(),first.getMonth()+1,0).getDate();
+        for(let i=1;i<=count;i++){
+            const d=fmtDate(new Date(first.getFullYear(),first.getMonth(),i));const step=healthSteps[d],note=healthNotes[d];
+            const b=document.createElement('button');b.className='health-day';b.disabled=d>today||d<HEALTH_START;
+            if(d<=last&&step!==undefined&&step>=dayGoal(d))b.classList.add('achieved');
+            if(d===healthSelectedDate)b.classList.add('selected');
+            const number=document.createElement('span');number.textContent=i;b.append(number);
+            const value=document.createElement('span');value.className='step';value.textContent=d===today?'':step===undefined?'―':nfmt(step);b.append(value);
+            const sub=document.createElement('span');sub.className='health-sub';sub.textContent=(note?.weight_kg!=null?Number(note.weight_kg).toFixed(1)+'kg ':'')+(note?.memo?'📝':'');b.append(sub);
+            b.onclick=()=>openHealthDay(d);cal.append(b);
+        }
+        const stat=document.getElementById('healthStats');stat.replaceChildren();
+        const dates=Object.keys(healthSteps).filter(d=>d>=HEALTH_START&&d<=last).sort();
+        const currentMonth=fmtDate(new Date(new Date().getFullYear(),new Date().getMonth(),1));
+        const currentYear=String(new Date().getFullYear())+'-01-01';
+        const statCard=(label,val)=>{const div=document.createElement('div');div.className='health-stat';const small=document.createElement('small');small.textContent=label;const strong=document.createElement('strong');strong.textContent=val;div.append(small,strong);stat.append(div);};
+        const avg=(from)=>{const a=dates.filter(d=>d>=from);return a.length?nfmt(Math.round(a.reduce((t,d)=>t+healthSteps[d],0)/a.length))+'歩':'―';};
+        statCard('直近7日 平均',avg(fmtDate(addDays(new Date(),-7))));
+        statCard('直近30日 平均',avg(fmtDate(addDays(new Date(),-30))));
+        statCard('今月 平均',avg(currentMonth));statCard('今年 平均',avg(currentYear));
+        const annual=dates.filter(d=>d>=currentYear);
+        if(annual.length){
+            const max=annual.reduce((a,b)=>healthSteps[a]>=healthSteps[b]?a:b);
+            const min=annual.reduce((a,b)=>healthSteps[a]<=healthSteps[b]?a:b);
+            statCard('今年最多',nfmt(healthSteps[max])+'歩 ('+max.slice(5)+')');
+            statCard('今年最少',nfmt(healthSteps[min])+'歩 ('+min.slice(5)+')');
+            const hits=annual.filter(d=>healthSteps[d]>=dayGoal(d)).length;
+            statCard('今年の目標達成率',Math.round(100*hits/annual.length)+'% ('+hits+'/'+annual.length+'日)');
+        }else{statCard('今年最多・最少','―');statCard('今年の目標達成率','―');}
+        let streak=0;for(let d=last;d>=HEALTH_START;d=fmtDate(addDays(dateFrom(d),-1))){if(healthSteps[d]===undefined||healthSteps[d]<dayGoal(d))break;streak++;}
+        statCard('連続目標達成（昨日まで）',streak+'日');
+        renderHealthCharts();
+    }
+    function moveHealthMonth(delta){healthMonth.setMonth(healthMonth.getMonth()+delta);renderHealth();}
+    function openHealthDay(d){healthSelectedDate=d;const r=healthNotes[d]||{};document.getElementById('healthDetail').style.display='block';document.getElementById('healthDetailTitle').textContent=d+' の記録';document.getElementById('healthDetailSteps').textContent=d===fmtDate(new Date())?'歩数：今日の歩数は非表示':'歩数：'+(healthSteps[d]===undefined?'記録なし':nfmt(healthSteps[d])+'歩（目標 '+nfmt(dayGoal(d))+'歩）');document.getElementById('healthWeight').value=r.weight_kg??'';document.getElementById('healthMemo').value=r.memo||'';renderHealth();document.getElementById('healthDetail').scrollIntoView({behavior:'smooth',block:'nearest'});}
+    async function saveHealthNote(){
+        if(!currentUser||!healthSelectedDate)return alert('ログインしてください');
+        const v=document.getElementById('healthWeight').value.trim(),memo=document.getElementById('healthMemo').value.trim();
+        if(v!==''&&(!Number.isFinite(Number(v))||Number(v)<1||Number(v)>999.9||!/^\d+(\.\d)?$/.test(v)))return alert('体重は1～999.9kg、小数1桁で入力してください');
+        if(!v&&!memo)return deleteHealthNote();
+        const {error}=await supabaseClient.from('health_daily_notes').upsert({user_id:currentUser.id,entry_date:healthSelectedDate,weight_kg:v===''?null:Number(v),memo:memo||null},{onConflict:'user_id,entry_date'});
+        if(error)return alert('保存失敗：'+error.message);
+        healthNotes[healthSelectedDate]={entry_date:healthSelectedDate,weight_kg:v===''?null:Number(v),memo:memo||null};renderHealth();alert('保存しました');
+    }
+    async function deleteHealthNote(){
+        if(!currentUser||!healthSelectedDate)return;
+        if(!confirm(healthSelectedDate+' の体重とメモを削除しますか？'))return;
+        const {error}=await supabaseClient.from('health_daily_notes').delete().eq('entry_date',healthSelectedDate).eq('user_id',currentUser.id);
+        if(error)return alert('削除失敗：'+error.message);
+        delete healthNotes[healthSelectedDate];document.getElementById('healthDetail').style.display='none';renderHealth();
+    }
+    async function saveHealthGoal(){
+        if(!currentUser)return alert('ログインしてください');
+        const goal=Number(document.getElementById('healthGoalInput').value);
+        if(!Number.isInteger(goal)||goal<1||goal>100000)return alert('目標は1～100,000歩で指定してください');
+        const today=fmtDate(new Date());
+        const {error}=await supabaseClient.from('health_step_goals').upsert({user_id:currentUser.id,effective_date:today,goal_steps:goal},{onConflict:'user_id,effective_date'});
+        if(error)return alert('保存失敗：'+error.message);
+        healthGoals=healthGoals.filter(r=>r.effective_date!==today).concat([{effective_date:today,goal_steps:goal}]).sort((a,b)=>a.effective_date.localeCompare(b.effective_date));
+        document.getElementById('healthSettings').style.display='none';renderHealth();alert('今日からの目標を変更しました');
+    }
+    function renderHealthCharts(){
+        if(typeof Chart==='undefined')return;
+        const last=yesterday(),today=new Date();
+        const stepPeriod=document.getElementById('stepChartPeriod').value;
+        const start=stepPeriod==='month'?fmtDate(new Date(today.getFullYear(),today.getMonth(),1)):fmtDate(addDays(today,-30));
+        const stepDates=[];for(let d=start;d<=last;d=fmtDate(addDays(dateFrom(d),1)))stepDates.push(d);
+        if(stepsChartInstance)stepsChartInstance.destroy();
+        stepsChartInstance=new Chart(document.getElementById('stepsChart'),{type:document.getElementById('stepChartType').value,data:{labels:stepDates.map(d=>d.slice(5)),datasets:[{label:'歩数',data:stepDates.map(d=>healthSteps[d]??null),backgroundColor:'#5695cb',borderColor:'#377dbb',borderWidth:2,spanGaps:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});
+        const period=document.getElementById('weightChartPeriod').value;
+        const weightStart=period==='month'?fmtDate(new Date(today.getFullYear(),today.getMonth(),1)):period==='year'?fmtDate(new Date(today.getFullYear(),0,1)):fmtDate(addDays(today,-29));
+        const weightDates=Object.keys(healthNotes).filter(d=>d>=weightStart&&d<=fmtDate(today)&&healthNotes[d].weight_kg!=null).sort();
+        const vals=weightDates.map(d=>Number(healthNotes[d].weight_kg));
+        document.getElementById('weightStats').textContent=vals.length?'平均 '+(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1)+'kg ／ 最小 '+Math.min(...vals).toFixed(1)+'kg ／ 最大 '+Math.max(...vals).toFixed(1)+'kg（'+vals.length+'日分）':'体重の記録がありません';
+        if(weightChartInstance)weightChartInstance.destroy();
+        weightChartInstance=new Chart(document.getElementById('weightChart'),{type:'line',data:{labels:weightDates.map(d=>d.slice(5)),datasets:[{label:'体重 kg',data:vals,borderColor:'#db7c7c',backgroundColor:'#db7c7c',pointRadius:3,tension:0.2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{title:{display:true,text:'kg'}}}}});
+    }
+
     initializeAuth();
 </script>
 
